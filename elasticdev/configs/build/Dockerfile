@@ -1,1 +1,4 @@
-Dockerfile.react
+FROM gear2000/meteor-launchpad
+MAINTAINER Gary Leong <gwleong@gmail.com>
+
+USER root

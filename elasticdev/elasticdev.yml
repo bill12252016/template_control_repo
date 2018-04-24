@@ -1,33 +1,31 @@
 global_arguments:
    EnvVars:
       METEOR_SETTINGS: '{{ METEOR_SETTINGS }}'
-   region: ap-southeast-1
+      APP_BUNDLE_DIR: /opt/meteor/dist/bundle
+   region: us-east-1
    db_type: mongodb
    sg_db_label: database
    sg_web_label: web
 infrastructure:
    vpc:
-       stack_name: Cloud/Ec2/VPC/2tier/Database/Web/public
+       stack_name: aws_vpc_2tier
    db:
-       stack_name: gary:::public::Cluster/Ubuntu/Ec2/param_db
-       dependencies:
-           - infrastructure::vpc
+       stack_name: aws_ec2_mongodb
        arguments:
           dbs: 1
-          size: t2.micro
+          size: t2.nano
    dockerhost:
-       stack_name: Deploy/Docker/Dev/SingleHost/create
-       dependencies: 
-           - infrastructure::vpc
+       stack_name: aws_ec2_dockerhost_dev
        arguments:
           size: t2.medium
-          disksize: 100
+          disksize: 50
 build:
    leaderboard:
-       stack_name: Stacks/CI/General/Dev/main
+       stack_name: build_dev
        repo_url: https://github.com/bill12252016/leaderboard
        repo_branch: dev
        triggered_branches:
+                 - master
                  - dev
        arguments:
           DOCKER_FILE_BUILD: configs/build/Dockerfile
@@ -39,7 +37,7 @@ build:
            - name: deploy_1
        rename:
            EnvVars:
-             DockerImage: DOCKER_IMAGE_LEADERBOARD_1
+             DockerImage: DOCKER_IMAGE_LEADERBOARD
    triggers:
        - name: leaderboard
          type: trigger
@@ -48,13 +46,11 @@ build:
              - deploy_1
 deploy:
     leaderboard_nginx:
-       stack_name: Stacks/CD/General/DeployOnly/main
+       stack_name: deploy_dev
        arguments:
-           job_name: test_nginx
+           EnvVars:
+               APP_BUNDLE_DIR: /opt/meteor/dist/bundle
+               ROOT_URL: http://127.0.0.1
            DOCKER_TEMPLATE_FILES:
-                 - template_file: configs/deploy/nginx-ssl/Dockerfile.ja2
-                   env_var_replacements: True
-                   dest_dir: null
-                 - template_file: configs/deploy/nginx-ssl/docker-compose.yml.ja2
-                   env_var_replacements: True
-                   dest_dir: null
+                 - template_file: configs/deploy/Dockerfile.ja2
+                 - template_file: configs/deploy/docker-compose.yml.ja2
